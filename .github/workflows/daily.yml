@@ -1,0 +1,53 @@
+name: 台股型態策略每日自動更新
+
+on:
+  schedule:
+    # 07:30 UTC = 15:30 台北時間，週一~週五（收盤後）
+    - cron: "30 7 * * 1-5"
+  workflow_dispatch: {}   # 允許在GitHub網頁上手動按「Run workflow」立即測試
+
+# 讓這支workflow內建的GITHUB_TOKEN有推回這個repo的權限（免另外申請PAT）
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-pattern-screener
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 簽出repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 設定Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安裝套件
+        run: pip install -r requirements.txt
+
+      - name: 執行型態策略每日流程
+        run: python tw_pattern_screener_shioaji.py
+
+      - name: 把儀表板複製一份給GitHub Pages用
+        run: |
+          mkdir -p docs
+          cp outputs/dashboard.html docs/index.html
+
+      - name: 提交更新後的狀態＋儀表板
+        run: |
+          git config user.name "tw-pattern-screener-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add positions.json outputs/trade_log.csv history_cache.json docs/index.html
+          if git diff --cached --quiet; then
+            echo "今天沒有任何狀態變化（可能是非交易日，或資料抓取失敗），不建立新commit"
+          else
+            git commit -m "每日自動更新 $(date -u +%Y-%m-%d) [skip ci]"
+            git push
+          fi

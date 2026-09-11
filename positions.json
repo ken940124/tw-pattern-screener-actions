@@ -1,0 +1,122 @@
+{
+  "1623.TW": {
+    "entry_date": "2026-09-10",
+    "entry_price": 216,
+    "quantity_shares": 462,
+    "量能倍數": 6.83
+  },
+  "2413.TW": {
+    "entry_date": "2026-09-07",
+    "entry_price": 47.85,
+    "quantity_shares": 2089,
+    "量能倍數": 9.27
+  },
+  "2460.TW": {
+    "entry_date": "2026-09-10",
+    "entry_price": 33.65,
+    "quantity_shares": 2971,
+    "量能倍數": 5.42
+  },
+  "2520.TW": {
+    "entry_date": "2026-09-04",
+    "entry_price": 37.1,
+    "quantity_shares": 2695,
+    "量能倍數": 2.04
+  },
+  "3071.TWO": {
+    "entry_date": "2026-09-07",
+    "entry_price": 25,
+    "quantity_shares": 4000,
+    "量能倍數": 3.58
+  },
+  "3479.TWO": {
+    "entry_date": "2026-09-10",
+    "entry_price": 129.5,
+    "quantity_shares": 772,
+    "量能倍數": 5.32
+  },
+  "4924.TWO": {
+    "entry_date": "2026-09-04",
+    "entry_price": 11.2,
+    "quantity_shares": 8928,
+    "量能倍數": 140.69
+  },
+  "4974.TWO": {
+    "entry_date": "2026-09-10",
+    "entry_price": 74.7,
+    "quantity_shares": 1338,
+    "量能倍數": 5.67
+  },
+  "4976.TW": {
+    "entry_date": "2026-09-04",
+    "entry_price": 38.05,
+    "quantity_shares": 2628,
+    "量能倍數": 5.78
+  },
+  "6152.TW": {
+    "entry_date": "2026-09-10",
+    "entry_price": 14,
+    "quantity_shares": 7142,
+    "量能倍數": 4.28
+  },
+  "6196.TW": {
+    "entry_date": "2026-09-10",
+    "entry_price": 537,
+    "quantity_shares": 186,
+    "量能倍數": 2.79
+  },
+  "6271.TW": {
+    "entry_date": "2026-09-07",
+    "entry_price": 243,
+    "quantity_shares": 411,
+    "量能倍數": 4.15
+  },
+  "6275.TWO": {
+    "entry_date": "2026-09-07",
+    "entry_price": 47.7,
+    "quantity_shares": 2096,
+    "量能倍數": 9.66
+  },
+  "6576.TWO": {
+    "entry_date": "2026-09-08",
+    "entry_price": 82.7,
+    "quantity_shares": 1209,
+    "量能倍數": 2.12
+  },
+  "6674.TW": {
+    "entry_date": "2026-09-08",
+    "entry_price": 16.5,
+    "quantity_shares": 6060,
+    "量能倍數": 8.54
+  },
+  "6906.TW": {
+    "entry_date": "2026-09-04",
+    "entry_price": 80.4,
+    "quantity_shares": 1243,
+    "量能倍數": 25.2
+  },
+  "7717.TWO": {
+    "entry_date": "2026-09-07",
+    "entry_price": 492.5,
+    "quantity_shares": 203,
+    "量能倍數": 8.41
+  },
+  "7744.TWO": {
+    "entry_date": "2026-09-04",
+    "entry_price": 525,
+    "quantity_shares": 190,
+    "量能倍數": 4.97
+  },
+  "8034.TWO": {
+    "entry_date": "2026-09-08",
+    "entry_price": 21.6,
+    "quantity_shares": 4629,
+    "量能倍數": 6.51
+  },
+  "9960.TWO": {
+    "entry_date": "2026-09-10",
+    "entry_price": 31.55,
+    "quantity_shares": 3169,
+    "量能倍數": 9.08
+  }
+}
