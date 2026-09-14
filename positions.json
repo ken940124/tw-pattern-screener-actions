@@ -11,12 +11,6 @@
     "quantity_shares": 2089,
     "量能倍數": 9.27
   },
-  "2460.TW": {
-    "entry_date": "2026-09-10",
-    "entry_price": 33.65,
-    "quantity_shares": 2971,
-    "量能倍數": 5.42
-  },
   "2520.TW": {
     "entry_date": "2026-09-04",
     "entry_price": 37.1,
@@ -118,5 +112,11 @@
     "entry_price": 31.55,
     "quantity_shares": 3169,
     "量能倍數": 9.08
+  },
+  "4104.TW": {
+    "entry_date": "2026-09-11",
+    "entry_price": 72.8,
+    "quantity_shares": 1373,
+    "量能倍數": 10.38
   }
 }

@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>型態策略模擬倉儀表板</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ef; --border: #e3e2dd;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #7a7972;
+    --good: #0ca30c; --critical: #d03b3b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #232322; --border: #35342f;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e85;
+      --good: #1fbf3a; --critical: #e66767;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #232322; --border: #35342f;
+    --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #8f8e85;
+    --good: #1fbf3a; --critical: #e66767;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--surface-1); color: var(--text-primary); font-family: -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif; }
+  .viz-root { background: var(--surface-1); color: var(--text-primary); padding: 32px 24px; min-height: 100vh; }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .updated { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .tile-value { font-size: 22px; font-weight: 600; }
+  h2 { font-size: 15px; margin: 28px 0 10px; color: var(--text-secondary); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-secondary); font-weight: 500; }
+  td.pos { color: var(--good); font-weight: 600; }
+  td.neg { color: var(--critical); font-weight: 600; }
+  tr.total-row td { font-weight: 600; border-top: 2px solid var(--border); border-bottom: none; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 16px 0; }
+  .note { margin-top: 28px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <div class="wrap">
+    <h1>連跌三日型態策略・模擬倉儀表板</h1>
+    <div class="updated">更新時間：2026-09-14 12:13（每次跑 tw_pattern_screener_shioaji.py 或 generate_dashboard.py 就會重新整理這個檔案）</div>
+    <div class="tiles"><div class="tile"><div class="tile-label">目前持有檔數</div><div class="tile-value">20</div></div><div class="tile"><div class="tile-label">已平倉交易筆數</div><div class="tile-value">31</div></div><div class="tile"><div class="tile-label">已平倉勝率</div><div class="tile-value">51.6%</div></div><div class="tile"><div class="tile-label">已實現損益</div><div class="tile-value">+66,939</div></div></div>
+    <h2>目前持有部位</h2>
+    
+        <table>
+            <thead><tr><th>股票代碼</th><th>股票名稱</th><th>進場日期</th><th>進場價</th><th>現價</th>
+            <th>數量</th><th>總成本</th><th>庫存現值</th><th>未實現損益</th>
+            <th>未實現報酬率</th><th>進場量能倍數</th></tr></thead>
+            <tbody><tr>
+                <td>1623.TW</td><td>大東電</td><td>2026-09-10</td>
+                <td>216</td><td>203.0</td>
+                <td>462股</td>
+                <td>99,792</td>
+                <td>93,786</td>
+                <td class="neg">-6,006</td>
+                <td class="neg">-6.02%</td>
+                <td>6.83</td>
+            </tr><tr>
+                <td>2413.TW</td><td>環科</td><td>2026-09-07</td>
+                <td>47.85</td><td>50.6</td>
+                <td>2089股</td>
+                <td>99,959</td>
+                <td>105,703</td>
+                <td class="pos">+5,745</td>
+                <td class="pos">+5.75%</td>
+                <td>9.27</td>
+            </tr><tr>
+                <td>2520.TW</td><td>冠德</td><td>2026-09-04</td>
+                <td>37.1</td><td>36.6</td>
+                <td>2695股</td>
+                <td>99,984</td>
+                <td>98,637</td>
+                <td class="neg">-1,348</td>
+                <td class="neg">-1.35%</td>
+                <td>2.04</td>
+            </tr><tr>
+                <td>3071.TWO</td><td>—</td><td>2026-09-07</td>
+                <td>25</td><td>23.5</td>
+                <td>4張</td>
+                <td>100,000</td>
+                <td>94,000</td>
+                <td class="neg">-6,000</td>
+                <td class="neg">-6.00%</td>
+                <td>3.58</td>
+            </tr><tr>
+                <td>3479.TWO</td><td>—</td><td>2026-09-10</td>
+                <td>129.5</td><td>131.0</td>
+                <td>772股</td>
+                <td>99,974</td>
+                <td>101,132</td>
+                <td class="pos">+1,158</td>
+                <td class="pos">+1.16%</td>
+                <td>5.32</td>
+            </tr><tr>
+                <td>4924.TWO</td><td>—</td><td>2026-09-04</td>
+                <td>11.2</td><td>12.5</td>
+                <td>8928股</td>
+                <td>99,994</td>
+                <td>111,600</td>
+                <td class="pos">+11,606</td>
+                <td class="pos">+11.61%</td>
+                <td>140.69</td>
+            </tr><tr>
+                <td>4974.TWO</td><td>—</td><td>2026-09-10</td>
+                <td>74.7</td><td>71.8</td>
+                <td>1338股</td>
+                <td>99,949</td>
+                <td>96,068</td>
+                <td class="neg">-3,880</td>
+                <td class="neg">-3.88%</td>
+                <td>5.67</td>
+            </tr><tr>
+                <td>4976.TW</td><td>佳凌</td><td>2026-09-04</td>
+                <td>38.05</td><td>35.0</td>
+                <td>2628股</td>
+                <td>99,995</td>
+                <td>91,980</td>
+                <td class="neg">-8,015</td>
+                <td class="neg">-8.02%</td>
+                <td>5.78</td>
+            </tr><tr>
+                <td>6152.TW</td><td>百一</td><td>2026-09-10</td>
+                <td>14</td><td>15.2</td>
+                <td>7142股</td>
+                <td>99,988</td>
+                <td>108,558</td>
+                <td class="pos">+8,570</td>
+                <td class="pos">+8.57%</td>
+                <td>4.28</td>
+            </tr><tr>
+                <td>6196.TW</td><td>帆宣</td><td>2026-09-10</td>
+                <td>537</td><td>520.0</td>
+                <td>186股</td>
+                <td>99,882</td>
+                <td>96,720</td>
+                <td class="neg">-3,162</td>
+                <td class="neg">-3.17%</td>
+                <td>2.79</td>
+            </tr><tr>
+                <td>6271.TW</td><td>同欣電</td><td>2026-09-07</td>
+                <td>243</td><td>220.0</td>
+                <td>411股</td>
+                <td>99,873</td>
+                <td>90,420</td>
+                <td class="neg">-9,453</td>
+                <td class="neg">-9.47%</td>
+                <td>4.15</td>
+            </tr><tr>
+                <td>6275.TWO</td><td>—</td><td>2026-09-07</td>
+                <td>47.7</td><td>45.15</td>
+                <td>2096股</td>
+                <td>99,979</td>
+                <td>94,634</td>
+                <td class="neg">-5,345</td>
+                <td class="neg">-5.35%</td>
+                <td>9.66</td>
+            </tr><tr>
+                <td>6576.TWO</td><td>—</td><td>2026-09-08</td>
+                <td>82.7</td><td>80.8</td>
+                <td>1209股</td>
+                <td>99,984</td>
+                <td>97,687</td>
+                <td class="neg">-2,297</td>
+                <td class="neg">-2.30%</td>
+                <td>2.12</td>
+            </tr><tr>
+                <td>6674.TW</td><td>鋐寶科技</td><td>2026-09-08</td>
+                <td>16.5</td><td>15.9</td>
+                <td>6060股</td>
+                <td>99,990</td>
+                <td>96,354</td>
+                <td class="neg">-3,636</td>
+                <td class="neg">-3.64%</td>
+                <td>8.54</td>
+            </tr><tr>
+                <td>6906.TW</td><td>現觀科</td><td>2026-09-04</td>
+                <td>80.4</td><td>83.0</td>
+                <td>1243股</td>
+                <td>99,937</td>
+                <td>103,169</td>
+                <td class="pos">+3,232</td>
+                <td class="pos">+3.23%</td>
+                <td>25.2</td>
+            </tr><tr>
+                <td>7717.TWO</td><td>—</td><td>2026-09-07</td>
+                <td>492.5</td><td>517.0</td>
+                <td>203股</td>
+                <td>99,978</td>
+                <td>104,951</td>
+                <td class="pos">+4,974</td>
+                <td class="pos">+4.97%</td>
+                <td>8.41</td>
+            </tr><tr>
+                <td>7744.TWO</td><td>—</td><td>2026-09-04</td>
+                <td>525</td><td>497.0</td>
+                <td>190股</td>
+                <td>99,750</td>
+                <td>94,430</td>
+                <td class="neg">-5,320</td>
+                <td class="neg">-5.33%</td>
+                <td>4.97</td>
+            </tr><tr>
+                <td>8034.TWO</td><td>—</td><td>2026-09-08</td>
+                <td>21.6</td><td>19.75</td>
+                <td>4629股</td>
+                <td>99,986</td>
+                <td>91,423</td>
+                <td class="neg">-8,564</td>
+                <td class="neg">-8.56%</td>
+                <td>6.51</td>
+            </tr><tr>
+                <td>9960.TWO</td><td>—</td><td>2026-09-10</td>
+                <td>31.55</td><td>31.3</td>
+                <td>3169股</td>
+                <td>99,982</td>
+                <td>99,190</td>
+                <td class="neg">-792</td>
+                <td class="neg">-0.79%</td>
+                <td>9.08</td>
+            </tr><tr>
+                <td>4104.TW</td><td>佳醫</td><td>2026-09-11</td>
+                <td>72.8</td><td>72.1</td>
+                <td>1373股</td>
+                <td>99,954</td>
+                <td>98,993</td>
+                <td class="neg">-961</td>
+                <td class="neg">-0.96%</td>
+                <td>10.38</td>
+            </tr></tbody>
+        </table>
+    <h2>歷史交易紀錄（已平倉）</h2>
+    
+        <table>
+            <thead><tr><th>股票代碼</th><th>股票名稱</th><th>進場日期</th><th>進場價</th>
+            <th>出場日期</th><th>出場價</th><th>數量</th><th>出場原因</th>
+            <th>總成本</th><th>出場金額</th><th>已實現損益</th><th>報酬率</th></tr></thead>
+            <tbody><tr>
+                <td>2460.TW</td><td>建通</td><td>2026-09-10</td><td>33.65</td>
+                <td>2026-09-11</td><td>30.05</td><td>2971股</td><td>停損</td>
+                <td>99,974</td><td>89,279</td>
+                <td class="neg">-10,696</td>
+                <td class="neg">-10.70%</td>
+            </tr><tr>
+                <td>6706.TW</td><td>惠特</td><td>2026-08-26</td><td>123.0</td>
+                <td>2026-09-08</td><td>123.0</td><td>813股</td><td>到期出場</td>
+                <td>99,999</td><td>99,999</td>
+                <td class="">+0</td>
+                <td class="">+0.00%</td>
+            </tr><tr>
+                <td>6442.TW</td><td>光聖</td><td>2026-08-26</td><td>1620.0</td>
+                <td>2026-09-08</td><td>1695.0</td><td>62股</td><td>到期出場</td>
+                <td>100,440</td><td>105,090</td>
+                <td class="pos">+4,650</td>
+                <td class="pos">+4.63%</td>
+            </tr><tr>
+                <td>3162.TWO</td><td>—</td><td>2026-08-26</td><td>72.5</td>
+                <td>2026-09-08</td><td>69.6</td><td>1497股</td><td>到期出場</td>
+                <td>108,532</td><td>104,191</td>
+                <td class="neg">-4,341</td>
+                <td class="neg">-4.00%</td>
+            </tr><tr>
+                <td>3022.TW</td><td>威強電</td><td>2026-09-07</td><td>97.0</td>
+                <td>2026-09-08</td><td>86.4</td><td>1030股</td><td>停損</td>
+                <td>99,910</td><td>88,992</td>
+                <td class="neg">-10,918</td>
+                <td class="neg">-10.93%</td>
+            </tr><tr>
+                <td>8227.TWO</td><td>—</td><td>2026-08-24</td><td>155.5</td>
+                <td>2026-09-07</td><td>164.0</td><td>641股</td><td>到期出場</td>
+                <td>99,676</td><td>105,124</td>
+                <td class="pos">+5,448</td>
+                <td class="pos">+5.47%</td>
+            </tr><tr>
+                <td>8093.TWO</td><td>—</td><td>2026-08-24</td><td>24.05</td>
+                <td>2026-09-07</td><td>26.25</td><td>4024股</td><td>到期出場</td>
+                <td>96,777</td><td>105,630</td>
+                <td class="pos">+8,853</td>
+                <td class="pos">+9.15%</td>
+            </tr><tr>
+                <td>6592.TW</td><td>和潤企業</td><td>2026-08-24</td><td>61.5</td>
+                <td>2026-09-07</td><td>60.6</td><td>1626股</td><td>到期出場</td>
+                <td>99,999</td><td>98,536</td>
+                <td class="neg">-1,463</td>
+                <td class="neg">-1.46%</td>
+            </tr><tr>
+                <td>2881.TW</td><td>富邦金</td><td>2026-08-24</td><td>135.0</td>
+                <td>2026-09-07</td><td>149.5</td><td>746股</td><td>到期出場</td>
+                <td>100,710</td><td>111,527</td>
+                <td class="pos">+10,817</td>
+                <td class="pos">+10.74%</td>
+            </tr><tr>
+                <td>0055.TW</td><td>元大MSCI金融</td><td>2026-08-24</td><td>44.17</td>
+                <td>2026-09-07</td><td>48.63</td><td>2263股</td><td>到期出場</td>
+                <td>99,957</td><td>110,050</td>
+                <td class="pos">+10,093</td>
+                <td class="pos">+10.10%</td>
+            </tr><tr>
+                <td>4174.TWO</td><td>—</td><td>2026-08-21</td><td>27.35</td>
+                <td>2026-09-03</td><td>25.0</td><td>3717股</td><td>到期出場</td>
+                <td>101,660</td><td>92,925</td>
+                <td class="neg">-8,735</td>
+                <td class="neg">-8.59%</td>
+            </tr><tr>
+                <td>7780.TW</td><td>大研生醫*</td><td>2026-08-21</td><td>16.85</td>
+                <td>2026-09-03</td><td>17.05</td><td>5934股</td><td>到期出場</td>
+                <td>99,988</td><td>101,175</td>
+                <td class="pos">+1,187</td>
+                <td class="pos">+1.19%</td>
+            </tr><tr>
+                <td>6712.TWO</td><td>—</td><td>2026-08-21</td><td>152.5</td>
+                <td>2026-09-03</td><td>157.5</td><td>657股</td><td>到期出場</td>
+                <td>100,192</td><td>103,478</td>
+                <td class="pos">+3,285</td>
+                <td class="pos">+3.28%</td>
+            </tr><tr>
+                <td>6456.TW</td><td>GIS-KY</td><td>2026-08-21</td><td>70.5</td>
+                <td>2026-09-03</td><td>70.1</td><td>1404股</td><td>到期出場</td>
+                <td>98,982</td><td>98,420</td>
+                <td class="neg">-562</td>
+                <td class="neg">-0.57%</td>
+            </tr><tr>
+                <td>6160.TWO</td><td>—</td><td>2026-08-21</td><td>15.25</td>
+                <td>2026-09-03</td><td>14.95</td><td>6535股</td><td>到期出場</td>
+                <td>99,659</td><td>97,698</td>
+                <td class="neg">-1,960</td>
+                <td class="neg">-1.97%</td>
+            </tr><tr>
+                <td>3673.TW</td><td>TPK-KY</td><td>2026-08-21</td><td>63.9</td>
+                <td>2026-09-03</td><td>67.0</td><td>1536股</td><td>到期出場</td>
+                <td>98,150</td><td>102,912</td>
+                <td class="pos">+4,762</td>
+                <td class="pos">+4.85%</td>
+            </tr><tr>
+                <td>3540.TWO</td><td>—</td><td>2026-08-21</td><td>22.55</td>
+                <td>2026-09-03</td><td>24.25</td><td>4618股</td><td>到期出場</td>
+                <td>104,136</td><td>111,986</td>
+                <td class="pos">+7,851</td>
+                <td class="pos">+7.54%</td>
+            </tr><tr>
+                <td>2850.TW</td><td>新產</td><td>2026-08-21</td><td>165.5</td>
+                <td>2026-09-03</td><td>161.0</td><td>602股</td><td>到期出場</td>
+                <td>99,631</td><td>96,922</td>
+                <td class="neg">-2,709</td>
+                <td class="neg">-2.72%</td>
+            </tr><tr>
+                <td>2258.TW</td><td>鴻華先進-創</td><td>2026-08-21</td><td>32.1</td>
+                <td>2026-09-03</td><td>31.0</td><td>3110股</td><td>到期出場</td>
+                <td>99,831</td><td>96,410</td>
+                <td class="neg">-3,421</td>
+                <td class="neg">-3.43%</td>
+            </tr><tr>
+                <td>2034.TW</td><td>允強</td><td>2026-08-21</td><td>20.4</td>
+                <td>2026-09-03</td><td>20.5</td><td>4889股</td><td>到期出場</td>
+                <td>99,736</td><td>100,224</td>
+                <td class="pos">+489</td>
+                <td class="pos">+0.49%</td>
+            </tr><tr>
+                <td>2014.TW</td><td>中鴻</td><td>2026-08-21</td><td>17.35</td>
+                <td>2026-09-03</td><td>16.95</td><td>5763股</td><td>到期出場</td>
+                <td>99,988</td><td>97,683</td>
+                <td class="neg">-2,305</td>
+                <td class="neg">-2.31%</td>
+            </tr><tr>
+                <td>1903.TW</td><td>士紙</td><td>2026-08-21</td><td>48.4</td>
+                <td>2026-09-03</td><td>47.6</td><td>2066股</td><td>到期出場</td>
+                <td>99,994</td><td>98,342</td>
+                <td class="neg">-1,653</td>
+                <td class="neg">-1.65%</td>
+            </tr><tr>
+                <td>1762.TW</td><td>中化生</td><td>2026-08-21</td><td>35.4</td>
+                <td>2026-09-03</td><td>36.2</td><td>2824股</td><td>到期出場</td>
+                <td>99,970</td><td>102,229</td>
+                <td class="pos">+2,259</td>
+                <td class="pos">+2.26%</td>
+            </tr><tr>
+                <td>1101.TW</td><td>台泥</td><td>2026-08-21</td><td>24.75</td>
+                <td>2026-09-03</td><td>24.8</td><td>4032股</td><td>到期出場</td>
+                <td>99,792</td><td>99,994</td>
+                <td class="pos">+202</td>
+                <td class="pos">+0.20%</td>
+            </tr><tr>
+                <td>8111.TWO</td><td>—</td><td>2026-08-21</td><td>59.9</td>
+                <td>2026-09-01</td><td>75.4</td><td>1666股</td><td>停利</td>
+                <td>99,793</td><td>125,616</td>
+                <td class="pos">+25,823</td>
+                <td class="pos">+25.88%</td>
+            </tr><tr>
+                <td>3363.TWO</td><td>—</td><td>2026-08-26</td><td>630.0</td>
+                <td>2026-08-31</td><td>747.0</td><td>160股</td><td>停利</td>
+                <td>100,800</td><td>119,520</td>
+                <td class="pos">+18,720</td>
+                <td class="pos">+18.57%</td>
+            </tr><tr>
+                <td>4908.TWO</td><td>—</td><td>2026-08-26</td><td>163.5</td>
+                <td>2026-08-27</td><td>195.5</td><td>617股</td><td>停利</td>
+                <td>100,880</td><td>120,624</td>
+                <td class="pos">+19,744</td>
+                <td class="pos">+19.57%</td>
+            </tr><tr>
+                <td>3018.TW</td><td>隆銘綠能</td><td>2026-08-21</td><td>13.7</td>
+                <td>2026-08-27</td><td>12.0</td><td>6825股</td><td>停損</td>
+                <td>93,502</td><td>81,900</td>
+                <td class="neg">-11,602</td>
+                <td class="neg">-12.41%</td>
+            </tr><tr>
+                <td>4188.TWO</td><td>—</td><td>2026-08-24</td><td>12.1</td>
+                <td>2026-08-26</td><td>14.6</td><td>9090股</td><td>停利</td>
+                <td>109,989</td><td>132,714</td>
+                <td class="pos">+22,725</td>
+                <td class="pos">+20.66%</td>
+            </tr><tr>
+                <td>6550.TW</td><td>北極星藥業-KY</td><td>2026-08-21</td><td>12.25</td>
+                <td>2026-08-25</td><td>11.0</td><td>8968股</td><td>停損</td>
+                <td>109,858</td><td>98,648</td>
+                <td class="neg">-11,210</td>
+                <td class="neg">-10.20%</td>
+            </tr><tr>
+                <td>1583.TW</td><td>程泰</td><td>2026-08-21</td><td>56.0</td>
+                <td>2026-08-24</td><td>51.5</td><td>1865股</td><td>停損</td>
+                <td>104,440</td><td>96,048</td>
+                <td class="neg">-8,392</td>
+                <td class="neg">-8.04%</td>
+            </tr><tr class="total-row">
+            <td colspan="8">總計（已實現，全部31筆）</td>
+            <td>3,126,946</td><td>3,193,884</td>
+            <td class="pos">+66,939</td>
+            <td class="pos">+2.14%</td>
+        </tr></tbody>
+        </table>
+    <div class="note">
+      這是純本地紙上模擬倉的記帳結果，不連任何券商、不涉及真實資金與真實成交。
+      未實現報酬率是用最近一個交易日的收盤價概算，不是即時報價。
+      本頁純粹是資料整理與統計呈現，不構成投資建議。
+    </div>
+  </div>
+</div>
+</body>
+</html>
