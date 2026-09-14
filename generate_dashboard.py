@@ -132,23 +132,44 @@ def _fetch_tpex_names(date):
 
 def fetch_stock_names(tickers):
     """回傳 {股票代碼: 股票名稱}。名稱幾乎不會變，先查本地快取（stock_names_cache.json），
-    只有快取沒有的代碼才去抓最近一個交易日的全市場代碼/名稱對照來補齊。"""
+    只有快取沒有的代碼才去抓最近一個交易日的全市場代碼/名稱對照來補齊。
+
+    修正說明（原本這裡有個bug，導致上櫃股票名稱常常補不齊）：
+    舊版把「抓上市(TWSE)名單」跟「抓上櫃(TPEx)名單」合併成同一個dict，只要當天兩邊
+    「合起來」有抓到任何名稱就直接停手，不會再往前一天試。這樣一來，只要上市那邊那天
+    剛好抓成功、但上櫃那邊那天剛好抓失敗（兩個是分開的網路請求，可能只有一邊出狀況），
+    因為「合起來非空」這個條件在上市成功的當下就已經成立，就會提早break，永遠不會再
+    幫上櫃(.TWO結尾)的股票試下一天，導致這些股票的名稱長期補不齊。
+
+    這裡改成上市、上櫃分開追蹤是否已經抓到過，各自獨立重試，互不影響對方的重試次數，
+    直到兩邊都抓到、或10天內都試過為止。"""
     if not tickers:
         return {}
     cache = _load_name_cache()
     missing = [t for t in tickers if t not in cache]
     if missing:
+        twse_ok, tpex_ok = False, False
+        updated = False
         for i in range(10):
+            if twse_ok and tpex_ok:
+                break
             d = datetime.now() - timedelta(days=i)
             if d.weekday() >= 5:
                 continue
-            names = {}
-            names.update(_fetch_twse_names(d))
-            names.update(_fetch_tpex_names(d))
-            if names:
-                cache.update(names)
-                _save_name_cache(cache)
-                break
+            if not twse_ok:
+                twse_names = _fetch_twse_names(d)
+                if twse_names:
+                    cache.update(twse_names)
+                    twse_ok = True
+                    updated = True
+            if not tpex_ok:
+                tpex_names = _fetch_tpex_names(d)
+                if tpex_names:
+                    cache.update(tpex_names)
+                    tpex_ok = True
+                    updated = True
+        if updated:
+            _save_name_cache(cache)
     return {t: cache.get(t, "") for t in tickers}
 
 

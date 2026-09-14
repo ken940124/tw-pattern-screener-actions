@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name "tw-pattern-screener-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add positions.json outputs/trade_log.csv history_cache.json docs/index.html
+          git add positions.json outputs/trade_log.csv history_cache.json stock_names_cache.json docs/index.html
           if git diff --cached --quiet; then
             echo "今天沒有任何狀態變化（可能是非交易日，或資料抓取失敗），不建立新commit"
           else
