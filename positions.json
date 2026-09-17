@@ -11,12 +11,6 @@
     "quantity_shares": 2089,
     "量能倍數": 9.27
   },
-  "2520.TW": {
-    "entry_date": "2026-09-04",
-    "entry_price": 37.1,
-    "quantity_shares": 2695,
-    "量能倍數": 2.04
-  },
   "3071.TWO": {
     "entry_date": "2026-09-07",
     "entry_price": 25,
@@ -29,23 +23,11 @@
     "quantity_shares": 772,
     "量能倍數": 5.32
   },
-  "4924.TWO": {
-    "entry_date": "2026-09-04",
-    "entry_price": 11.2,
-    "quantity_shares": 8928,
-    "量能倍數": 140.69
-  },
   "4974.TWO": {
     "entry_date": "2026-09-10",
     "entry_price": 74.7,
     "quantity_shares": 1338,
     "量能倍數": 5.67
-  },
-  "4976.TW": {
-    "entry_date": "2026-09-04",
-    "entry_price": 38.05,
-    "quantity_shares": 2628,
-    "量能倍數": 5.78
   },
   "6152.TW": {
     "entry_date": "2026-09-10",
@@ -83,23 +65,11 @@
     "quantity_shares": 6060,
     "量能倍數": 8.54
   },
-  "6906.TW": {
-    "entry_date": "2026-09-04",
-    "entry_price": 80.4,
-    "quantity_shares": 1243,
-    "量能倍數": 25.2
-  },
   "7717.TWO": {
     "entry_date": "2026-09-07",
     "entry_price": 492.5,
     "quantity_shares": 203,
     "量能倍數": 8.41
-  },
-  "7744.TWO": {
-    "entry_date": "2026-09-04",
-    "entry_price": 525,
-    "quantity_shares": 190,
-    "量能倍數": 4.97
   },
   "8034.TWO": {
     "entry_date": "2026-09-08",
