@@ -168,10 +168,35 @@ def build_recent_history():
     date_strs = [d.strftime("%Y-%m-%d") for d in dates]
 
     missing = [d for d, ds in zip(dates, date_strs) if ds not in cache]
+
+    # 2026-09-17修正：原本的邏輯是「這天只要在cache裡有key，就當作完全抓齊了，不會再發任何
+    # 請求」。但實務上發現，只要TWSE成功、TPEx那天剛好失敗（例如雲端排程的IP被tpex.org.tw
+    # 擋掉／連線不穩逾時），merged還是非空（有TWSE部分），這天照樣會被寫進cache——結果就是
+    # 「上櫃股票那天的資料永遠遺失，而且往後每天都不會再重試」，因為判斷「要不要重抓」只看
+    # 這天在不在cache裡，不看cache裡的資料是不是完整。這裡改成額外追蹤twse_ok/tpex_ok兩個
+    # flag，只要某天的tpex_ok不是True，之後每次執行都會單獨補抓那天的TPEx部分（不會浪費
+    # 請求重抓已經成功的TWSE部分），直到補齊為止。對於這次修正上線之前就已經存在、格式裡沒有
+    # tpex_ok欄位的舊快取資料，用「這天merged裡有沒有任何.TWO股票」回推：完全沒有.TWO代表
+    # 當初這天TPEx大概率是失敗的，一樣會被排進補抓名單（正常交易日一定會有上百檔上櫃股票，
+    # 不可能真的是0檔），這樣舊資料也能被這次的修正自動修復，不用手動改cache檔案。
+    needs_tpex_retry = []
+    for d, ds in zip(dates, date_strs):
+        if ds not in cache:
+            continue  # 這天完全沒抓過，已經在上面的missing裡了，等一下會整天重抓
+        entry = cache[ds]
+        tpex_ok = entry.get("tpex_ok")
+        if tpex_ok is None:
+            tpex_ok = any(k.endswith(".TWO") for k in entry.get("merged", {}))
+        if not tpex_ok:
+            needs_tpex_retry.append((d, ds))
+
     if missing:
         logger.info(f"歷史快取缺 {len(missing)} 天的資料，需要向TWSE/TPEx發請求補齊："
                     f"{[d.strftime('%Y-%m-%d') for d in missing]}")
-    else:
+    if needs_tpex_retry:
+        logger.info(f"歷史快取有 {len(needs_tpex_retry)} 天先前TPEx（上櫃）抓取失敗，"
+                    f"這次會單獨重新補抓TPEx部分：{[ds for _, ds in needs_tpex_retry]}")
+    if not missing and not needs_tpex_retry:
         logger.info("歷史快取已涵蓋所需的所有日期，這次不需要對TWSE/TPEx發任何請求")
 
     for d in missing:
@@ -181,9 +206,23 @@ def build_recent_history():
         merged = {**twse, **tpex}
         taiex_close = _fetch_taiex_close(d) if twse else None
         if merged or taiex_close is not None:
-            cache[ds] = {"merged": merged, "taiex": taiex_close}
+            cache[ds] = {
+                "merged": merged, "taiex": taiex_close,
+                "twse_ok": bool(twse), "tpex_ok": bool(tpex),
+            }
         # 抓不到資料的日期（假日、還沒收盤、或抓取失敗）故意不寫進快取，
         # 這樣下次執行還會再嘗試，不會把「抓失敗」誤存成「這天沒交易」
+
+    for d, ds in needs_tpex_retry:
+        tpex = fetch_tpex_day(d)
+        if tpex:
+            entry = cache[ds]
+            entry["merged"] = {**entry.get("merged", {}), **tpex}
+            entry["tpex_ok"] = True
+            logger.info(f"{ds}：補抓TPEx成功，補進 {len(tpex)} 檔上櫃股票收盤價")
+        else:
+            cache[ds]["tpex_ok"] = False
+            logger.warning(f"{ds}：這次補抓TPEx還是失敗，下次執行會繼續重試")
 
     # 清掉超出目前lookback視窗的舊日期，避免快取無限長大
     keep_set = set(date_strs)
