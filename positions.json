@@ -65,12 +65,6 @@
     "quantity_shares": 6060,
     "量能倍數": 8.54
   },
-  "7717.TWO": {
-    "entry_date": "2026-09-07",
-    "entry_price": 492.5,
-    "quantity_shares": 203,
-    "量能倍數": 8.41
-  },
   "8034.TWO": {
     "entry_date": "2026-09-08",
     "entry_price": 21.6,
@@ -106,5 +100,11 @@
     "entry_price": 39.6,
     "quantity_shares": 2525,
     "量能倍數": 1.54
+  },
+  "5488.TWO": {
+    "entry_date": "2026-09-18",
+    "entry_price": 12.0,
+    "quantity_shares": 8333,
+    "量能倍數": 5.28
   }
 }
