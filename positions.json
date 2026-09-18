@@ -88,5 +88,23 @@
     "entry_price": 72.8,
     "quantity_shares": 1373,
     "量能倍數": 10.38
+  },
+  "6126.TWO": {
+    "entry_date": "2026-09-17",
+    "entry_price": 29.5,
+    "quantity_shares": 3389,
+    "量能倍數": 1.97
+  },
+  "6530.TWO": {
+    "entry_date": "2026-09-17",
+    "entry_price": 97.6,
+    "quantity_shares": 1024,
+    "量能倍數": 1.67
+  },
+  "2520.TW": {
+    "entry_date": "2026-09-18",
+    "entry_price": 39.6,
+    "quantity_shares": 2525,
+    "量能倍數": 1.54
   }
 }
