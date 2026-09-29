@@ -101,10 +101,22 @@
     "quantity_shares": 617,
     "量能倍數": 1.97
   },
-  "1235.TW": {
-    "entry_date": "2026-09-24",
-    "entry_price": 40.15,
-    "quantity_shares": 2490,
-    "量能倍數": 9.12
+  "8072.TW": {
+    "entry_date": "2026-09-29",
+    "entry_price": 28.35,
+    "quantity_shares": 3527,
+    "量能倍數": 9.93
+  },
+  "3152.TWO": {
+    "entry_date": "2026-09-29",
+    "entry_price": 226.5,
+    "quantity_shares": 441,
+    "量能倍數": 5.96
+  },
+  "3114.TWO": {
+    "entry_date": "2026-09-29",
+    "entry_price": 35.0,
+    "quantity_shares": 2857,
+    "量能倍數": 5.13
   }
 }
