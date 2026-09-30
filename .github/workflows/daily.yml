@@ -1,10 +1,7 @@
 name: 台股型態策略每日自動更新
 
 on:
-  schedule:
-    # 07:30 UTC = 15:30 台北時間，週一~週五（收盤後）
-    - cron: "30 7 * * 1-5"
-  workflow_dispatch: {}   # 允許在GitHub網頁上手動按「Run workflow」立即測試
+  workflow_dispatch: {}   # 由cron-job.org觸發，也可以在網頁上手動按「Run workflow」
 
 # 讓這支workflow內建的GITHUB_TOKEN有推回這個repo的權限（免另外申請PAT）
 permissions:
