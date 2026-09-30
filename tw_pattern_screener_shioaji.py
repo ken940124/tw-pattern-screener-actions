@@ -43,6 +43,7 @@ import os
 import json
 import logging
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -162,7 +163,7 @@ def build_recent_history():
     回傳 ({ticker: DataFrame(含ma20)}, taiex_df(含ma20))"""
     cache = _load_history_cache()
 
-    today = datetime.now()
+    today = datetime.now(ZoneInfo("Asia/Taipei")).replace(tzinfo=None)
     dates = [today - timedelta(days=i) for i in range(LOOKBACK_CALENDAR_DAYS, -1, -1)]
     dates = [d for d in dates if d.weekday() < 5]
     date_strs = [d.strftime("%Y-%m-%d") for d in dates]
@@ -361,19 +362,99 @@ def plan_order_size(reference_price, risk_per_trade=RISK_PER_TRADE_NTD, stop_los
     return int(risk_per_trade // per_share_risk)
 
 
-def count_trading_days(start_date_str, end_date):
-    """算進場日（不含）到現在（含）之間經過了幾個交易日，用「非週末」近似交易日
-    （這支程式其他地方，例如build_recent_history，也是用同樣「排除週六日」的簡化方式，
-    沒有特別排除國定假日，剛好卡到連假的話，這裡算出來的天數會比實際交易日略多一點，
-    偏保守——也就是可能會比回測定義的20個交易日稍微晚一點點才出場，不會太早出場）。"""
-    start = datetime.strptime(start_date_str, "%Y-%m-%d")
-    days = 0
-    d = start
-    while d < end_date:
-        d += timedelta(days=1)
-        if d.weekday() < 5:
-            days += 1
-    return days
+def repair_trade_log():
+    """每次執行時自動整理交易紀錄（重複執行不會有副作用）：
+
+    1) 同一檔股票、同一個進場日只應該有一筆出場紀錄。舊版在「一天跑兩次」加上「休市日照跑」時，
+       會把同一個訊號停損後又重新進場、再停損（1235.TW興泰09-24進場，被記了6次停損），
+       這裡保留最後一筆（真正的出場），刪掉前面重複的。
+    2) 修正09-14~09-17 TPEx抓取失敗期間，上櫃股被舊價格記錯的兩筆：
+       4924.TWO 09-15收盤13.5已達+18%停利，舊版因為拿到09-11的舊價12.5沒觸發，09-17又用舊價到期出場；
+       7744.TWO 09-17實際收盤508，舊版用舊價497記出場。
+    """
+    if not os.path.exists(TRADE_LOG_FILE):
+        return
+    df = pd.read_csv(TRADE_LOG_FILE, encoding="utf-8-sig", dtype=str)
+    before = len(df)
+    df = df.drop_duplicates(subset=["股票代碼", "進場日期"], keep="last")
+    removed = before - len(df)
+
+    fixes = [
+        # (股票代碼, 進場日期, 舊的出場價) → 正確的 (出場日期, 出場價, 出場原因)
+        ("4924.TWO", "2026-09-04", "12.5", ("2026-09-15", "13.5", "停利")),
+        ("7744.TWO", "2026-09-04", "497.0", ("2026-09-17", "508.0", "到期出場")),
+    ]
+    fixed = 0
+    for tk, ent, old_px, (ex_date, ex_px, why) in fixes:
+        m = (df["股票代碼"] == tk) & (df["進場日期"] == ent) & (df["出場價"].astype(float) == float(old_px))
+        if m.any():
+            entry_px = float(df.loc[m, "進場價"].iloc[0])
+            df.loc[m, ["出場日期", "出場價", "出場原因"]] = [ex_date, ex_px, why]
+            df.loc[m, "報酬率"] = str(round((float(ex_px) - entry_px) / entry_px, 4))
+            fixed += int(m.sum())
+
+    if removed or fixed:
+        df.to_csv(TRADE_LOG_FILE, index=False, encoding="utf-8-sig")
+        logger.info(f"交易紀錄整理完成：刪除{removed}筆重複出場紀錄、修正{fixed}筆舊價格造成的錯誤紀錄")
+
+
+def load_traded_keys():
+    """讀出交易紀錄裡所有「(股票代碼, 進場日期)」組合，用來避免同一個訊號被重複進場。"""
+    if not os.path.exists(TRADE_LOG_FILE):
+        return set()
+    df = pd.read_csv(TRADE_LOG_FILE, encoding="utf-8-sig", dtype=str)
+    return set(zip(df["股票代碼"], df["進場日期"]))
+
+
+def check_exits(positions, frames, trading_days, today_str):
+    """逐日檢查每個部位「上次檢查之後、到今天為止」每一個新交易日的收盤價。
+
+    修正說明（2026-09-30）：
+    舊版每次執行都只拿df.iloc[-1]（這檔股票「最後一筆有資料的那天」）判斷，而且持有天數用
+    「非週末天數」估算，造成三個問題：
+      1) TPEx抓取失敗時，上櫃股拿到的是好幾天前的舊價格（4924.TWO錯過停利、7744.TWO用舊價出場）；
+      2) 休市日（例如09-25中秋、09-28教師節）workflow照跑，會用前一交易日的資料重複判斷；
+      3) 持有天數會把國定假日也算進去，而且迴圈多算一天，實際只持有9個交易日就到期。
+    新版改成：每個部位記錄last_checked，只檢查比它新的交易日，依日期順序逐日判斷，
+    出場日期記成「觸發的那個交易日」；持有天數用實際有開市的交易日計算。
+    這樣同一天跑幾次、遇到休市、或上櫃資料晚一天補回來，結果都一樣（idempotent）。
+    """
+    for ticker, pos in list(positions.items()):
+        df = frames.get(ticker)
+        if df is None or df.empty:
+            logger.warning(f"{ticker} 這次沒有任何價格資料，先不檢查出場，下次再看")
+            continue
+        last_checked = pos.get("last_checked") or pos["entry_date"]
+        new_rows = df[(df["date"] > last_checked) & (df["date"] <= today_str)]
+        if new_rows.empty:
+            continue
+        exited = False
+        for _, row in new_rows.iterrows():
+            cur_price = float(row["close"])
+            ret = (cur_price - pos["entry_price"]) / pos["entry_price"]
+            hold_days = sum(1 for d in trading_days if pos["entry_date"] < d <= row["date"])
+
+            exit_reason = None
+            if ret <= STOP_LOSS_PCT:
+                exit_reason = "停損"
+            elif ret >= TAKE_PROFIT_PCT:
+                exit_reason = "停利"
+            elif hold_days >= MAX_HOLD_DAYS:
+                exit_reason = "到期出場"
+
+            if exit_reason:
+                logger.info(f"{ticker} 於{row['date']}出場（{exit_reason}），持有{hold_days}個交易日，報酬{ret*100:.2f}%")
+                log_trade({"股票代碼": ticker, "進場日期": pos["entry_date"], "進場價": pos["entry_price"],
+                           "出場日期": row["date"], "出場價": cur_price, "出場原因": exit_reason,
+                           "報酬率": round(ret, 4), "股數": pos["quantity_shares"]})
+                del positions[ticker]
+                exited = True
+                break
+        if not exited:
+            pos["last_checked"] = new_rows["date"].iloc[-1]
+            if new_rows["date"].iloc[-1] != today_str:
+                logger.warning(f"{ticker} 最新價格停在{new_rows['date'].iloc[-1]}，不是今天（{today_str}），"
+                               f"可能是資料源暫時缺漏，下次執行補到資料後會再依序檢查")
 
 
 # ------------------------------------------------------------------
@@ -381,45 +462,49 @@ def count_trading_days(start_date_str, end_date):
 # ------------------------------------------------------------------
 
 def main():
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    # GitHub Actions的機器是UTC時區，這裡明確用台北時間決定「今天」
+    today_str = datetime.now(ZoneInfo("Asia/Taipei")).strftime("%Y-%m-%d")
     logger.info(f"=== 型態策略本地模擬倉每日流程開始（{today_str}）===")
 
+    repair_trade_log()
     positions = load_positions()
 
     frames, taiex_df = build_recent_history()
     taiex_ma20_pass = taiex_ma20_status(taiex_df)
     logger.info(f"大盤是否站上MA20：{taiex_ma20_pass}")
 
-    # --- 1. 先檢查現有部位，觸發停損/停利/超過最長持有天數就出場（純記帳，不送出任何委託）---
-    for ticker, pos in list(positions.items()):
-        df = frames.get(ticker)
-        if df is None or df.empty:
-            continue
-        latest = df.iloc[-1]
-        cur_price = float(latest["close"])
-        ret = (cur_price - pos["entry_price"]) / pos["entry_price"]
-        hold_days = count_trading_days(pos["entry_date"], datetime.now())
+    # 實際有開市的交易日（有任何個股資料的日期），用來算持有天數、判斷今天是不是交易日
+    trading_days = sorted(set().union(*(set(df["date"]) for df in frames.values() if not df.empty)))
+    latest_trading_day = trading_days[-1] if trading_days else None
+    taiex_latest = taiex_df["date"].iloc[-1] if not taiex_df.empty else None
 
-        exit_reason = None
-        if ret <= STOP_LOSS_PCT:
-            exit_reason = "停損"
-        elif ret >= TAKE_PROFIT_PCT:
-            exit_reason = "停利"
-        elif hold_days >= MAX_HOLD_DAYS:
-            exit_reason = "到期出場"
-
-        if exit_reason:
-            logger.info(f"{ticker} 出場（{exit_reason}），報酬{ret*100:.2f}%")
-            log_trade({"股票代碼": ticker, "進場日期": pos["entry_date"], "進場價": pos["entry_price"],
-                       "出場日期": today_str, "出場價": cur_price, "出場原因": exit_reason,
-                       "報酬率": round(ret, 4), "股數": pos["quantity_shares"]})
-            del positions[ticker]
-
+    # --- 1. 檢查現有部位出場（逐日、只看還沒檢查過的交易日，重複執行不會重複出場）---
+    check_exits(positions, frames, trading_days, today_str)
     save_positions(positions)
 
-    # --- 2. 掃今天的新訊號，套用回測濾網＋流動性濾網＋每日/總量上限後，依風險等權重算股數、記錄進場 ---
-    signals = scan_today_signals(frames, taiex_ma20_pass)
+    # --- 2. 進場：只有「今天是交易日、而且今天的資料已經抓到」才掃新訊號 ---
+    # 休市日（週末以外的國定假日）或資料還沒出來時，最新資料會停在前一個交易日，
+    # 這時如果照樣掃描，會把前一天已經處理過的訊號再進場一次（09-24興泰重複停損的原因）
+    if latest_trading_day != today_str or taiex_latest != today_str:
+        logger.warning(f"最新個股資料日期={latest_trading_day}、大盤資料日期={taiex_latest}，"
+                       f"不是今天（{today_str}）——今天可能休市或資料尚未公布，這次不開新倉")
+        signals = []
+    else:
+        signals = scan_today_signals(frames, taiex_ma20_pass)
     logger.info(f"今天符合型態＋均線＋成交量濾網的訊號共 {len(signals)} 檔")
+
+    # 同一個訊號（同一檔、同一個進場日）只能進場一次：已經在交易紀錄裡（進過場又出場了）就不再買回
+    traded_keys = load_traded_keys()
+    fresh = []
+    for s in signals:
+        key = (s["股票代碼"], s["進場日期"])
+        if s["進場日期"] != today_str:
+            logger.info(f"{s['股票代碼']} 訊號的進場日是{s['進場日期']}，不是今天，跳過")
+        elif key in traded_keys:
+            logger.info(f"{s['股票代碼']} 這個訊號（進場日{s['進場日期']}）先前已經進出場過，不重複進場")
+        else:
+            fresh.append(s)
+    signals = fresh
 
     # 部位總量上限：已經滿了就完全不開新倉；沒滿的話，訊號依「量能倍數」由高到低排序，
     # 只取排名前MAX_NEW_POSITIONS_PER_DAY名（且不超過剩餘名額），避免單日訊號暴增時資金需求跟著暴增
@@ -451,6 +536,7 @@ def main():
         positions[ticker] = {
             "entry_date": entry_date, "entry_price": entry_price,
             "quantity_shares": total_shares, "量能倍數": sig["量能倍數"],
+            "last_checked": entry_date,   # 進場當天的收盤不檢查出場，從下一個交易日開始檢查
         }
         logger.info(f"{ticker} 記錄進場，{total_shares}股，參考價{entry_price}（約{total_shares*entry_price:,.0f}元），"
                     f"量能{sig['量能倍數']}倍")
