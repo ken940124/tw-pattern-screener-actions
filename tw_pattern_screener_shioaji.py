@@ -129,6 +129,83 @@ def _fetch_taiex_close(date):
     return None
 
 
+# ------------------------------------------------------------------
+# 除權息（2026-10-02新增）
+# ------------------------------------------------------------------
+# 問題：模擬倉用的是交易所公布的「原始」收盤價。除權息日當天，交易所會把參考價往下調
+# （例如收盤26.45、配息0.6 → 參考價25.85），舊版程式把這段下調當成股價下跌：
+#   1) 持有部位的報酬被低估（配到的股息沒算進來），嚴重時還可能誤觸停損；
+#   2) 型態偵測也會被干擾——除權息造成的「假下跌」可能被誤認成連跌、均線也被扭曲。
+# 做法：每天向證交所（TWT49U）與櫃買中心（除權除息計算結果表）抓除權息資料，
+# 調整係數 f = 除權息參考價 ÷ 除權息前收盤價（例如 25.85/26.45 = 0.977）。
+#   - 型態偵測用的歷史價格：除權息日「之前」的開高低收乘上 f（向前還原），跟回測一致；
+#   - 持有部位：除權息日當天起，部位的「還原係數」除以 f，損益改用「總報酬」計算
+#     （等同股息再投入，配股也一併涵蓋），停損停利也依總報酬判斷。
+TWSE_EXRIGHT_URL = "https://www.twse.com.tw/rwd/zh/exRight/TWT49U"
+TPEX_EXRIGHT_URL = "https://www.tpex.org.tw/www/zh-tw/bulletin/exDailyQ"
+
+
+def _roc_to_iso(s):
+    """把「115年09月01日」或「115/09/01」轉成「2026-09-01」，失敗回傳None"""
+    import re
+    m = re.match(r"\s*(\d{2,3})\D(\d{1,2})\D(\d{1,2})", str(s))
+    if not m:
+        return None
+    y, mth, d = (int(x) for x in m.groups())
+    return f"{y + 1911:04d}-{mth:02d}-{d:02d}"
+
+
+def _parse_exright_rows(rows, idx_date, idx_code, idx_prev, idx_ref, suffix, out):
+    for row in rows:
+        try:
+            ds = _roc_to_iso(row[idx_date])
+            code = str(row[idx_code]).strip()
+            prev = float(str(row[idx_prev]).replace(",", ""))
+            ref = float(str(row[idx_ref]).replace(",", ""))
+        except (ValueError, TypeError, IndexError):
+            continue
+        if not ds or not code.isdigit() or len(code) != 4 or prev <= 0 or ref <= 0:
+            continue
+        f = ref / prev
+        if 0.3 < f < 1.0:   # 正常的除權息一定是往下調；超出範圍的視為異常資料略過
+            out.setdefault(ds, {})[f"{code}{suffix}"] = round(f, 8)
+
+
+def fetch_exrights(start, end):
+    """抓 start~end（datetime）期間兩個市場的除權息資料。
+    回傳 {日期: {股票代碼: 調整係數f}}；任一市場抓取失敗回傳None（呼叫端下次再重試）。"""
+    out = {}
+    twse = _get_with_retry(TWSE_EXRIGHT_URL, {"startDate": start.strftime("%Y%m%d"),
+                                              "endDate": end.strftime("%Y%m%d"), "response": "json"})
+    if not isinstance(twse, dict) or "stat" not in twse:
+        logger.warning("證交所除權息資料抓取失敗，下次執行再試")
+        return None
+    fields = twse.get("fields") or []
+    if twse.get("data"):          # 沒有任何除權息時，證交所回傳的stat是「沒有符合條件的資料」，不算失敗
+        try:
+            _parse_exright_rows(twse["data"], fields.index("資料日期"), fields.index("股票代號"),
+                                fields.index("除權息前收盤價"), fields.index("除權息參考價"), ".TW", out)
+        except ValueError:
+            logger.warning(f"證交所除權息欄位跟預期不符：{fields}")
+            return None
+
+    tpex = _get_with_retry(TPEX_EXRIGHT_URL, {"startDate": start.strftime("%Y/%m/%d"),
+                                              "endDate": end.strftime("%Y/%m/%d"), "response": "json"})
+    if not isinstance(tpex, dict) or not tpex.get("tables"):
+        logger.warning("櫃買中心除權息資料抓取失敗，下次執行再試")
+        return None
+    t = tpex["tables"][0]
+    fields = t.get("fields") or []
+    if t.get("data"):
+        try:
+            _parse_exright_rows(t["data"], fields.index("除權息日期"), fields.index("代號"),
+                                fields.index("除權息前收盤價"), fields.index("除權息參考價"), ".TWO", out)
+        except ValueError:
+            logger.warning(f"櫃買中心除權息欄位跟預期不符：{fields}")
+            return None
+    return out
+
+
 def _load_history_cache():
     if os.path.exists(HISTORY_CACHE_FILE):
         with open(HISTORY_CACHE_FILE, "r", encoding="utf-8") as f:
@@ -225,6 +302,18 @@ def build_recent_history():
             cache[ds]["tpex_ok"] = False
             logger.warning(f"{ds}：這次補抓TPEx還是失敗，下次執行會繼續重試")
 
+    # 除權息資料：快取裡每個交易日都要有「exr_ok」，沒有的話用一次區間查詢補齊（兩個市場各1個請求）
+    need_exr = sorted(ds for ds in date_strs if ds in cache and not cache[ds].get("exr_ok"))
+    if need_exr:
+        exr = fetch_exrights(datetime.strptime(need_exr[0], "%Y-%m-%d"),
+                             datetime.strptime(need_exr[-1], "%Y-%m-%d"))
+        if exr is not None:
+            for ds in need_exr:
+                cache[ds]["exr"] = exr.get(ds, {})
+                cache[ds]["exr_ok"] = True
+            logger.info(f"除權息資料已補齊{len(need_exr)}個交易日，其中有除權息事件的日期："
+                        f"{ {ds: len(v) for ds, v in exr.items() if ds in need_exr} }")
+
     # 清掉超出目前lookback視窗的舊日期，避免快取無限長大
     keep_set = set(date_strs)
     for ds in list(cache.keys()):
@@ -238,14 +327,24 @@ def build_recent_history():
         entry = cache.get(ds)
         if not entry:
             continue
+        exr_day = entry.get("exr", {})
+        exr_ok = bool(entry.get("exr_ok"))
         for ticker, ohlcv in entry.get("merged", {}).items():
-            per_ticker.setdefault(ticker, []).append({"date": ds, **ohlcv})
+            per_ticker.setdefault(ticker, []).append(
+                {"date": ds, **ohlcv, "exf": exr_day.get(ticker, 1.0), "exr_ok": exr_ok})
         if entry.get("taiex") is not None:
-            taiex_records.append({"date": ds, "close": entry["taiex"]})
+            taiex_records.append({"date": ds, "close": entry["taiex"], "exr_ok": exr_ok})
 
     frames = {}
     for ticker, records in per_ticker.items():
         df = pd.DataFrame(records).drop_duplicates(subset="date").sort_values("date").reset_index(drop=True)
+        # 原始收盤價留給出場判斷用；開高低收則依除權息係數向前還原，給型態偵測與均線用
+        df["close_raw"] = df["close"]
+        if (df["exf"] < 1.0).any():
+            # 第i天的還原倍數 = 第i天之後（不含當天）所有除權息係數的乘積
+            later = df["exf"][::-1].cumprod()[::-1].shift(-1).fillna(1.0)
+            for col in ["open", "high", "low", "close"]:
+                df[col] = df[col] * later
         df["ma20"] = df["close"].rolling(MA_WINDOW).mean()
         frames[ticker] = df
 
@@ -368,7 +467,7 @@ def repair_trade_log():
     1) 同一檔股票、同一個進場日只應該有一筆出場紀錄。舊版在「一天跑兩次」加上「休市日照跑」時，
        會把同一個訊號停損後又重新進場、再停損（1235.TW興泰09-24進場，被記了6次停損），
        這裡保留最後一筆（真正的出場），刪掉前面重複的。
-    2) 修正09-14~09-17 TPEx抓取失敗期間，上櫃股被舊價格記錯的兩筆：
+    2) 修正09-14~09-17 TPEx抓取失敗期間，上櫃股被舊價格記錯的兩筆（另含7780.TW漏算除息一筆）：
        4924.TWO 09-15收盤13.5已達+18%停利，舊版因為拿到09-11的舊價12.5沒觸發，09-17又用舊價到期出場；
        7744.TWO 09-17實際收盤508，舊版用舊價497記出場。
     """
@@ -383,6 +482,9 @@ def repair_trade_log():
         # (股票代碼, 進場日期, 舊的出場價) → 正確的 (出場日期, 出場價, 出場原因)
         ("4924.TWO", "2026-09-04", "12.5", ("2026-09-15", "13.5", "停利")),
         ("7744.TWO", "2026-09-04", "497.0", ("2026-09-17", "508.0", "到期出場")),
+        # 7780.TW 09-03除息（參考價16.93／前收17.05），出場日正好是除息日，股息當時沒算進去；
+        # 改記含息還原出場價 17.05 ÷ (16.93/17.05) = 17.1708
+        ("7780.TW", "2026-08-21", "17.05", ("2026-09-03", "17.1708", "到期出場")),
     ]
     fixed = 0
     for tk, ent, old_px, (ex_date, ex_px, why) in fixes:
@@ -429,10 +531,25 @@ def check_exits(positions, frames, trading_days, today_str):
         if new_rows.empty:
             continue
         exited = False
+        processed = None
         for _, row in new_rows.iterrows():
-            cur_price = float(row["close"])
+            if "exr_ok" in row and not bool(row["exr_ok"]):
+                # 這天的除權息資料還沒抓到，先停在前一天，下次補到資料再從這天繼續檢查，
+                # 避免除息造成的價格下調被誤當成虧損
+                logger.warning(f"{ticker} {row['date']}的除權息資料尚未取得，這次先不檢查這天之後的出場")
+                break
+            exf = float(row["exf"]) if "exf" in row and pd.notna(row["exf"]) else 1.0
+            if exf < 1.0:
+                # 除權息日：部位的還原係數放大，之後一律用「含息總報酬」計算損益與停損停利
+                pos["div_factor"] = round(pos.get("div_factor", 1.0) / exf, 8)
+                pos.setdefault("ex_rights", []).append({"date": row["date"], "factor": exf})
+                logger.info(f"{ticker} {row['date']}除權息，調整係數{exf:.4f}，"
+                            f"部位改用含息總報酬計算（累計還原係數{pos['div_factor']:.4f}）")
+            raw_close = float(row["close_raw"]) if "close_raw" in row else float(row["close"])
+            cur_price = raw_close * pos.get("div_factor", 1.0)    # 含息還原後的價格
             ret = (cur_price - pos["entry_price"]) / pos["entry_price"]
             hold_days = sum(1 for d in trading_days if pos["entry_date"] < d <= row["date"])
+            processed = row["date"]
 
             exit_reason = None
             if ret <= STOP_LOSS_PCT:
@@ -443,17 +560,19 @@ def check_exits(positions, frames, trading_days, today_str):
                 exit_reason = "到期出場"
 
             if exit_reason:
-                logger.info(f"{ticker} 於{row['date']}出場（{exit_reason}），持有{hold_days}個交易日，報酬{ret*100:.2f}%")
+                note = "（出場價為含息還原價）" if pos.get("div_factor", 1.0) != 1.0 else ""
+                logger.info(f"{ticker} 於{row['date']}出場（{exit_reason}），持有{hold_days}個交易日，"
+                            f"報酬{ret*100:.2f}%{note}")
                 log_trade({"股票代碼": ticker, "進場日期": pos["entry_date"], "進場價": pos["entry_price"],
-                           "出場日期": row["date"], "出場價": cur_price, "出場原因": exit_reason,
+                           "出場日期": row["date"], "出場價": round(cur_price, 4), "出場原因": exit_reason,
                            "報酬率": round(ret, 4), "股數": pos["quantity_shares"]})
                 del positions[ticker]
                 exited = True
                 break
-        if not exited:
-            pos["last_checked"] = new_rows["date"].iloc[-1]
-            if new_rows["date"].iloc[-1] != today_str:
-                logger.warning(f"{ticker} 最新價格停在{new_rows['date'].iloc[-1]}，不是今天（{today_str}），"
+        if not exited and processed is not None:
+            pos["last_checked"] = processed
+            if processed != today_str:
+                logger.warning(f"{ticker} 最新價格停在{processed}，不是今天（{today_str}），"
                                f"可能是資料源暫時缺漏，下次執行補到資料後會再依序檢查")
 
 
@@ -488,6 +607,9 @@ def main():
     if latest_trading_day != today_str or taiex_latest != today_str:
         logger.warning(f"最新個股資料日期={latest_trading_day}、大盤資料日期={taiex_latest}，"
                        f"不是今天（{today_str}）——今天可能休市或資料尚未公布，這次不開新倉")
+        signals = []
+    elif "exr_ok" in taiex_df.columns and not bool(taiex_df["exr_ok"].iloc[-1]):
+        logger.warning("今天的除權息資料還沒抓到，歷史價格無法正確還原，為避免把除權息的價格下調誤判成型態，這次不開新倉")
         signals = []
     else:
         signals = scan_today_signals(frames, taiex_ma20_pass)
