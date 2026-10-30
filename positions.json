@@ -1,30 +1,16 @@
 {
-  "9935.TW": {
-    "entry_date": "2026-10-14",
-    "entry_price": 18.7,
-    "quantity_shares": 5347,
-    "量能倍數": 7.05,
-    "last_checked": "2026-10-29"
-  },
-  "3540.TWO": {
-    "entry_date": "2026-10-14",
-    "entry_price": 24.75,
-    "quantity_shares": 4040,
-    "量能倍數": 4.55,
-    "last_checked": "2026-10-29"
-  },
   "2323.TW": {
     "entry_date": "2026-10-15",
     "entry_price": 11.95,
     "quantity_shares": 8368,
     "量能倍數": 4.53,
-    "last_checked": "2026-10-29"
+    "last_checked": "2026-10-30"
   },
   "3537.TWO": {
     "entry_date": "2026-10-15",
     "entry_price": 57.9,
     "quantity_shares": 1727,
     "量能倍數": 4.35,
-    "last_checked": "2026-10-29"
+    "last_checked": "2026-10-30"
   }
 }
